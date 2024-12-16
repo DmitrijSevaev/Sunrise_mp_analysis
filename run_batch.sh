@@ -31,9 +31,6 @@ done
 # Ensure the script runs in the correct directory
 cd "$SCRIPT_DIR" || exit 1
 
-# Request CPUs and log job start
-echo "Requesting $NUMBER_OF_WORKERS CPUs for the job..." >> log.txt
-
 # Clear and prepare directories
 function clear_dirs {
     if [ -d "$1" ]; then
@@ -90,7 +87,7 @@ while true; do
         echo "All jobs have finished."
         break  # Exit the loop when no jobs are running
     fi
-    sleep 2  # Wait for 10 seconds before checking again
+    sleep 1  # Wait for 1 second before checking again
 done
 
 # Step 4: Combine files (wait for jobs to finish before this step)
