@@ -8,7 +8,6 @@ from typing import List
 import numpy as np
 import pandas as pd
 from numpy import ndarray
-from tqdm import tqdm
 import pyarrow.feather as ft
 
 
@@ -22,7 +21,7 @@ class SingleWorker:
 
     def calculate_differences_2212_fast(self,
                                         data: ndarray,
-                                        pixels: List[int] | List[List[int]],
+                                        pixels: List[int],
                                         pix_coor: ndarray,
                                         delta_window: float = 50e3,
                                         cycle_length: float = 4e9,
@@ -341,7 +340,7 @@ class SingleWorker:
             # Path to the calibration data
             pix_coordinates = np.arange(256).reshape(64, 4)
 
-            path_calibration_data = 'C:\\Users\\fintv\\Desktop\\CAPADS\\Sunrise\\sunrise_testing_script\\calibration_data'
+            path_calibration_data = '/home/sevaedmi/sunrise_testing_script/calibration_data'
 
             # Include the offset calibration or not
             try:
@@ -499,7 +498,7 @@ class SingleWorker:
         return pix
 
 
-    def correct_pixels_address(self, pixels: List[int] | List[List[int]]):
+    def correct_pixels_address(self, pixels: List[int]):
         """Correct pixel address for all given pixels.
 
         Return the list with the same dimensions as the input.
@@ -539,7 +538,7 @@ class SingleWorker:
         """
 
         path_to_back = os.getcwd()
-        os.chdir('C:\\Users\\fintv\\Desktop\\CAPADS\\Sunrise\\sunrise_testing_script\\masks')
+        os.chdir('/home/sevaedmi/sunrise_testing_script/masks')
         file_mask = glob.glob(f"*{daughterboard_number}_{motherboard_number}*")[0]
         mask = np.genfromtxt(file_mask).astype(int)
         os.chdir(path_to_back)
@@ -611,7 +610,7 @@ class SingleWorker:
 
     def calculate_and_save_timestamp_differences_fast(self,
             path: str,
-            pixels: List[int] | List[List[int]],
+            pixels: List[int],
             rewrite: bool,
             daughterboard_number: str,
             motherboard_number: str,
