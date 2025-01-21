@@ -20,10 +20,10 @@ def restore_from_backup(data_path, backup_path):
 
 if __name__ == '__main__':
     # Define the paths and parameters
-    data_path = 'C:\\Users\\fintv\\Desktop\\CAPADS\\Sunrise\\sunrise_testing_script\\raw_data'
-    distributed_dat_path = 'C:\\Users\\fintv\\Desktop\\CAPADS\\Sunrise\\sunrise_testing_script\\distributed_dat_files'
-    output_feathers_path = 'C:\\Users\\fintv\\Desktop\\CAPADS\\Sunrise\\sunrise_testing_script\\output_feathers'
-    backup_dat_path = 'C:\\Users\\fintv\\Desktop\\CAPADS\\Sunrise\\sunrise_testing_script\\backup_dat_files'
+    data_path = 'C:\\Users\\fintv\\Desktop\\CAPADS\\Sunrise\\Sunrise_mp_analysis\\raw_data'
+    distributed_dat_path = 'C:\\Users\\fintv\\Desktop\\CAPADS\\Sunrise\\Sunrise_mp_analysis\\distributed_dat_files'
+    output_feathers_path = 'C:\\Users\\fintv\\Desktop\\CAPADS\\Sunrise\\Sunrise_mp_analysis\\output_feathers'
+    backup_dat_path = 'C:\\Users\\fintv\\Desktop\\CAPADS\\Sunrise\\Sunrise_mp_analysis\\backup_dat_files'
     single_worker_dat_path = distributed_dat_path + '\\chunk_'
     num_of_workers = 10
 

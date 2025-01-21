@@ -1,14 +1,12 @@
 #!/bin/bash
 
-# Add local Python packages to PYTHONPATH
-export PYTHONPATH=$HOME/.local/lib/python3.9/site-packages:$PYTHONPATH
-
 # Define paths
-DATA_PATH="C:\\Users\\fintv\\Desktop\\CAPADS\\Sunrise\\sunrise_testing_script\\raw_data"
-DISTRIBUTED_DAT_PATH="C:\\Users\\fintv\\Desktop\\CAPADS\\Sunrise\\sunrise_testing_script\\distributed_dat_files"
-OUTPUT_FEATHERS_PATH="C:\\Users\\fintv\\Desktop\\CAPADS\\Sunrise\\sunrise_testing_script\\output_feathers"
-BACKUP_DAT_PATH="C:\\Users\\fintv\\Desktop\\CAPADS\\Sunrise\\sunrise_testing_script\\backup_dat_files"
-SINGLE_WORKER_DAT_PATH="${DISTRIBUTED_DAT_PATH}\\chunk_"
+SCRIPT_DIR="/home/sevaedmi/sunrise_testing_script"
+DATA_PATH="${SCRIPT_DIR}/raw_data"
+DISTRIBUTED_DAT_PATH="${SCRIPT_DIR}/distributed_dat_files"
+OUTPUT_FEATHERS_PATH="${SCRIPT_DIR}/output_feathers"
+BACKUP_DAT_PATH="${SCRIPT_DIR}/backup_dat_files"
+SINGLE_WORKER_DAT_PATH="${DISTRIBUTED_DAT_PATH}/chunk_"
 
 # Arguments for delta t calculation
 NUMBER_OF_WORKERS=10
@@ -19,6 +17,19 @@ MOTHERBOARD_NUMBER="#33"
 FIRMWARE_VERSION="2212b"
 TIMESTAMPS=300
 INCLUDE_OFFSET="False"
+
+# Get arguments passed to script
+CLEANUP_FLAG=""
+while getopts "d" opt; do
+	case $opt in
+		d)
+			CLEANUP_FLAG="TRUE"
+			;;
+	esac
+done
+
+# Ensure the script runs in the correct directory
+cd "$SCRIPT_DIR" || exit 1
 
 # Clear and prepare directories
 function clear_dirs {
@@ -45,15 +56,6 @@ START_TIME=$(date +%s)
 echo "=======================================================" >> log.txt
 echo "Script started at: $(date)" >> log.txt
 
-# Check if pytz is installed; if not, install it
-python -c "import pytz" 2>/dev/null || pip install --user pytz
-
-# Check if pandas is installed; if not, install it
-python -c "import pandas" 2>/dev/null || pip install --user pandas
-
-# import pandas manually to check version
-python -c "import pandas as pd; print(pd.__version__)"
-
 # Step 1: Distribute files
 echo "Distributing files..." >> log.txt
 python -c "
@@ -65,27 +67,30 @@ distributor.distribute()
 # Restore data directory from backup
 restore_from_backup "$DATA_PATH" "$BACKUP_DAT_PATH"
 
-# Step 2: Process files with workers
-echo "Processing files with $NUMBER_OF_WORKERS workers..." >> log.txt
+# Step 2: Submit jobs for single workers
+echo "Submitting $NUMBER_OF_WORKERS jobs..." >> log.txt
 for ((i=0; i<NUMBER_OF_WORKERS; i++)); do
     SINGLE_WORKER_PATH="${SINGLE_WORKER_DAT_PATH}${i}"
-    python -c "
-from single_worker import SingleWorker
-arguments = {
-    'pixels': $PIXELS,
-    'rewrite': $REWRITE,
-    'daughterboard_number': '$DAUGHTERBOARD_NUMBER',
-    'motherboard_number': '$MOTHERBOARD_NUMBER',
-    'firmware_version': '$FIRMWARE_VERSION',
-    'timestamps': $TIMESTAMPS,
-    'include_offset': $INCLUDE_OFFSET,
-}
-worker = SingleWorker(r'$SINGLE_WORKER_PATH', arguments)
-worker.calculate_and_save_timestamp_differences_fast(r'$SINGLE_WORKER_PATH', **arguments)
-"
+    qsub -N worker_$i -l select=1:ncpus=1 -- sunrise_testing_script/single_worker.sh \
+        "$SCRIPT_DIR" "$SINGLE_WORKER_PATH" "$PIXELS" "$REWRITE" \
+        "$DAUGHTERBOARD_NUMBER" "$MOTHERBOARD_NUMBER" "$FIRMWARE_VERSION" \
+        "$TIMESTAMPS" "$INCLUDE_OFFSET"
 done
 
-# Step 3: Combine files
+# Step 3: Wait for all jobs to finish
+echo "Waiting for all jobs to finish..." >> log.txt
+
+# Loop to check if all jobs are finished
+while true; do
+    RUNNING_JOBS=$(qstat | grep "worker_" | wc -l)  # Check for running jobs
+    if [ "$RUNNING_JOBS" -eq 0 ]; then
+        echo "All jobs have finished."
+        break  # Exit the loop when no jobs are running
+    fi
+    sleep 1  # Wait for 1 second before checking again
+done
+
+# Step 4: Combine files (wait for jobs to finish before this step)
 echo "Combining files..." >> log.txt
 python -c "
 from files_combiner import FilesCombiner
@@ -93,10 +98,16 @@ combiner = FilesCombiner(r'$DISTRIBUTED_DAT_PATH', r'$OUTPUT_FEATHERS_PATH')
 combiner.combine()
 "
 
-# Step 4: Clean up
+# Step 5: Clean up
 echo "Cleaning up..." >> log.txt
 clear_dirs "$DISTRIBUTED_DAT_PATH"
 #clear_dirs "$DATA_PATH"
+
+# Conditional outputs deleting if -d argument passed
+if [ "$CLEANUP_FLAG" == "TRUE" ]; then
+    echo "Removing worker files..."
+    rm -v ./worker_*.e* ./worker_*.o*  # Verbose removal
+fi
 
 # Log end time and duration
 END_TIME=$(date +%s)
@@ -104,3 +115,4 @@ DURATION=$((END_TIME - START_TIME))
 echo "Script ended at: $(date). Time taken: $DURATION seconds" >> log.txt
 echo "=======================================================" >> log.txt
 echo "" >> log.txt
+
